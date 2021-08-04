@@ -1,2 +1,2 @@
-# rust_game_collection
+# Rust Game Collection
 Collection of games developed in rust
