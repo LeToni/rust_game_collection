@@ -1,4 +1,5 @@
-use bevy::prelude::*;
+use bevy::{core::FixedTimestep, prelude::*};
+use rand::random;
 
 const ARENA_WIDTH: u32 = 10;
 const ARENA_HEIGHT: u32 = 10;
@@ -52,6 +53,7 @@ fn convert(pos: f32, bound_window: f32, bound_game: f32) -> f32 {
 struct SnakeHead;
 struct Materials {
     head_material: Handle<ColorMaterial>,
+    food_material: Handle<ColorMaterial>,
 }
 
 fn snake_movement(
@@ -86,10 +88,27 @@ fn spawn_snake(mut commands: Commands, materials: Res<Materials>) {
         .insert(Size::square(0.8));
 }
 
+struct Food;
+
+fn spawn_food(mut commands: Commands, materials: Res<Materials>) {
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.food_material.clone(),
+            ..Default::default()
+        })
+        .insert(Food)
+        .insert(Position {
+            x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
+            y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
+        })
+        .insert(Size::square(0.8));
+}
+
 fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.insert_resource(Materials {
         head_material: materials.add(Color::rgb(0.7, 0.7, 0.7).into()),
+        food_material: materials.add(Color::rgb(1.0, 0.0, 1.0).into()),
     });
 }
 
@@ -105,6 +124,11 @@ fn main() {
         .add_startup_system(setup.system())
         .add_startup_stage("game_setup", SystemStage::single(spawn_snake.system()))
         .add_system(snake_movement.system())
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(1.0))
+                .with_system(spawn_food.system()),
+        )
         .add_system_set_to_stage(
             CoreStage::PostUpdate,
             SystemSet::new()
