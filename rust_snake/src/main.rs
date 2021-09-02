@@ -97,10 +97,13 @@ struct Materials {
 
 struct GrowthEvent;
 
+struct GameOverEvent;
+
 fn snake_movement(
     segments: ResMut<SnakeSegments>,
     mut heads: Query<(Entity, &SnakeHead)>,
     mut last_tail_position: ResMut<LastTailPosition>,
+    mut game_over_writer: EventWriter<GameOverEvent>,
     mut positions: Query<&mut Position>,
 ) {
     if let Some((head_entity, head)) = heads.iter_mut().next() {
@@ -123,7 +126,20 @@ fn snake_movement(
             Direction::Down => {
                 head_pos.y -= 1;
             }
+        };
+
+        if head_pos.x < 0
+            || head_pos.y < 0
+            || head_pos.x as u32 >= ARENA_WIDTH
+            || head_pos.y as u32 >= ARENA_HEIGHT
+        {
+            game_over_writer.send(GameOverEvent);
         }
+
+        if segment_positions.contains(&head_pos) {
+            game_over_writer.send(GameOverEvent);
+        }
+
         segment_positions
             .iter()
             .zip(segments.0.iter().skip(1))
@@ -246,6 +262,22 @@ fn spawn_food(mut commands: Commands, materials: Res<Materials>) {
         .insert(Size::square(0.8));
 }
 
+fn game_over(
+    mut commands: Commands,
+    mut reader: EventReader<GameOverEvent>,
+    materials: Res<Materials>,
+    segments_res: ResMut<SnakeSegments>,
+    food: Query<Entity, With<Food>>,
+    segments: Query<Entity, With<SnakeSegment>>,
+) {
+    if reader.iter().next().is_some() {
+        for ent in food.iter().chain(segments.iter()) {
+            commands.entity(ent).despawn();
+        }
+        spawn_snake(commands, materials, segments_res);
+    }
+}
+
 fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.insert_resource(Materials {
@@ -267,6 +299,7 @@ fn main() {
         .insert_resource(SnakeSegments::default())
         .insert_resource(LastTailPosition::default())
         .add_event::<GrowthEvent>()
+        .add_event::<GameOverEvent>()
         .add_startup_system(setup.system())
         .add_startup_stage("game_setup", SystemStage::single(spawn_snake.system()))
         .add_system(
@@ -275,6 +308,7 @@ fn main() {
                 .label(SnakeMovement::Input)
                 .before(SnakeMovement::Movement),
         )
+        .add_system(game_over.system().after(SnakeMovement::Movement))
         .add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(0.150))
