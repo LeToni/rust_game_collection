@@ -12,6 +12,11 @@ struct Materials {
 struct Player;
 struct PlayerSpeed(f32);
 // endregion: Components
+impl Default for PlayerSpeed {
+    fn default() -> Self {
+        Self(500.0)
+    }
+}
 
 fn main() {
     App::build()
@@ -28,6 +33,7 @@ fn main() {
             "game_setup_actors",
             SystemStage::single(player_spawn.system()),
         )
+        .add_system(player_movement.system())
         .run();
 }
 
@@ -50,13 +56,33 @@ fn player_spawn(mut commands: Commands, materials: Res<Materials>, windows: Res<
     let window = windows.get_primary().unwrap();
     let bottom = -window.height() / 2.0;
 
-    commands.spawn_bundle(SpriteBundle {
-        material: materials.player_materials.clone(),
-        transform: Transform {
-            translation: Vec3::new(0., bottom + 75.0 / 4.0 + 5., 10.0),
-            scale: Vec3::new(0.5, 0.5, 1.0),
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.player_materials.clone(),
+            transform: Transform {
+                translation: Vec3::new(0., bottom + 75.0 / 4.0 + 5., 10.0),
+                scale: Vec3::new(0.5, 0.5, 1.0),
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    });
+        })
+        .insert(Player)
+        .insert(PlayerSpeed::default());
+}
+
+fn player_movement(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<(&PlayerSpeed, &mut Transform, With<Player>)>,
+) {
+    if let Ok((speed, mut transform, _)) = query.single_mut() {
+        let dir = if keyboard_input.pressed(KeyCode::Left) {
+            -1.0
+        } else if keyboard_input.pressed(KeyCode::Right) {
+            1.0
+        } else {
+            0.0
+        };
+
+        transform.translation.x += dir * speed.0 * TIME_STEPS;
+    }
 }
