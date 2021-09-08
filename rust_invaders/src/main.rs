@@ -22,6 +22,7 @@ struct WinSize {
 
 // region: Components
 struct Player;
+struct PlayerReadyFire(bool);
 struct Laser;
 struct Speed(f32);
 // endregion: Components
@@ -89,6 +90,7 @@ fn player_spawn(mut commands: Commands, materials: Res<Materials>, window: Res<W
             ..Default::default()
         })
         .insert(Player)
+        .insert(PlayerReadyFire(true))
         .insert(Speed::default());
 }
 
@@ -113,10 +115,10 @@ fn player_shoots(
     mut commands: Commands,
     materials: Res<Materials>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&Transform, With<Player>)>,
+    mut query: Query<(&Transform, &mut PlayerReadyFire, With<Player>)>,
 ) {
-    if let Ok((player_tf, _)) = query.single_mut() {
-        if keyboard_input.pressed(KeyCode::Space) {
+    if let Ok((player_tf, mut ready_fire, _)) = query.single_mut() {
+        if ready_fire.0 && keyboard_input.pressed(KeyCode::Space) {
             let pos_x = player_tf.translation.x;
             let pos_y = player_tf.translation.y;
 
@@ -124,13 +126,19 @@ fn player_shoots(
                 .spawn_bundle(SpriteBundle {
                     material: materials.laser_materials.clone(),
                     transform: Transform {
-                        translation: Vec3::new(pos_x, pos_y, 0.0),
+                        translation: Vec3::new(pos_x, pos_y + 15., 0.0),
                         ..Default::default()
                     },
                     ..Default::default()
                 })
                 .insert(Laser)
                 .insert(Speed::default());
+
+            ready_fire.0 = false;
+        }
+
+        if keyboard_input.just_released(KeyCode::Space) {
+            ready_fire.0 = true;
         }
     }
 }
