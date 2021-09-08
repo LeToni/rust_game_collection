@@ -1,12 +1,22 @@
-use bevy::{input::keyboard::keyboard_input_system, prelude::*};
+use bevy::prelude::*;
 
 const PLAYER_SPRITE: &str = "player.png";
 const LASER_SPRITE: &str = "laser_a_01.png";
+
 const TIME_STEPS: f32 = 1.0 / 60.0;
+const WINDOW_WIDTH: f32 = 600.0;
+const WINDOW_HEIGHT: f32 = 600.0;
+
 // region: Resources
 struct Materials {
     player_materials: Handle<ColorMaterial>,
     laser_materials: Handle<ColorMaterial>,
+}
+
+#[allow(unused)]
+struct WinSize {
+    width: f32,
+    height: f32,
 }
 // endregiom: Resources
 
@@ -26,8 +36,8 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)))
         .insert_resource(WindowDescriptor {
             title: "Rust Invaders".to_string(),
-            width: 600.0,
-            height: 600.0,
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
@@ -38,6 +48,7 @@ fn main() {
         )
         .add_system(player_movement.system())
         .add_system(player_shoots.system())
+        .add_system(laser_movement.system())
         .run();
 }
 
@@ -45,7 +56,10 @@ fn setup(
     mut commands: Commands,
     assert_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    windows: Res<Windows>,
 ) {
+    let window = windows.get_primary().unwrap();
+
     // camera
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
@@ -54,12 +68,15 @@ fn setup(
         player_materials: materials.add(assert_server.load(PLAYER_SPRITE).into()),
         laser_materials: materials.add(assert_server.load(LASER_SPRITE).into()),
     });
+    commands.insert_resource(WinSize {
+        width: window.width(),
+        height: window.height(),
+    })
 }
 
-fn player_spawn(mut commands: Commands, materials: Res<Materials>, windows: Res<Windows>) {
+fn player_spawn(mut commands: Commands, materials: Res<Materials>, window: Res<WinSize>) {
     // spawn sprite
-    let window = windows.get_primary().unwrap();
-    let bottom = -window.height() / 2.0;
+    let bottom = -window.height / 2.0;
 
     commands
         .spawn_bundle(SpriteBundle {
@@ -114,6 +131,21 @@ fn player_shoots(
                 })
                 .insert(Laser)
                 .insert(Speed::default());
+        }
+    }
+}
+
+fn laser_movement(
+    window: Res<WinSize>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &Speed, &mut Transform, With<Laser>)>,
+) {
+    for (laser_entity, speed, mut laser_tf, _) in query.iter_mut() {
+        let translation = &mut laser_tf.translation;
+        translation.y += speed.0 * TIME_STEPS;
+
+        if translation.y > window.height {
+            commands.entity(laser_entity).despawn();
         }
     }
 }
