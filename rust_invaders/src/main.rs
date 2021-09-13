@@ -129,6 +129,7 @@ fn player_shoots(
                         material: materials.laser_materials.clone(),
                         transform: Transform {
                             translation: Vec3::new(pos_x + x_offset, pos_y + 15., 0.0),
+                            scale: Vec3::new(SCALE, SCALE, 1.),
                             ..Default::default()
                         },
                         ..Default::default()
