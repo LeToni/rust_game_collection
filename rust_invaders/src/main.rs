@@ -6,6 +6,7 @@ const LASER_SPRITE: &str = "laser_a_01.png";
 const TIME_STEPS: f32 = 1.0 / 60.0;
 const WINDOW_WIDTH: f32 = 600.0;
 const WINDOW_HEIGHT: f32 = 600.0;
+const SCALE: f32 = 0.5;
 
 // region: Resources
 struct Materials {
@@ -122,17 +123,23 @@ fn player_shoots(
             let pos_x = player_tf.translation.x;
             let pos_y = player_tf.translation.y;
 
-            commands
-                .spawn_bundle(SpriteBundle {
-                    material: materials.laser_materials.clone(),
-                    transform: Transform {
-                        translation: Vec3::new(pos_x, pos_y + 15., 0.0),
+            let mut spawn_larsers = |x_offset: f32| {
+                commands
+                    .spawn_bundle(SpriteBundle {
+                        material: materials.laser_materials.clone(),
+                        transform: Transform {
+                            translation: Vec3::new(pos_x + x_offset, pos_y + 15., 0.0),
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                })
-                .insert(Laser)
-                .insert(Speed::default());
+                    })
+                    .insert(Laser)
+                    .insert(Speed::default());
+            };
+
+            let x_offset = 144.0 / 4. - 5.;
+            spawn_larsers(x_offset);
+            spawn_larsers(-x_offset);
 
             ready_fire.0 = false;
         }
