@@ -5,8 +5,9 @@ use enemy::EnemyPlugin;
 use player::PlayerPlugin;
 
 const PLAYER_SPRITE: &str = "player.png";
-const LASER_SPRITE: &str = "laser_a_01.png";
+const PLAYER_LASER_SPRITE: &str = "laser_a_01.png";
 const ENEMY_SPRITE: &str = "enemy.png";
+const ENEMY_LASER_SPRITE: &str = "laser_b_01.png";
 const EXPLOSION_SHEET: &str = "explo_a_sheet.png";
 const TIME_STEPS: f32 = 1.0 / 60.0;
 const WINDOW_WIDTH: f32 = 600.0;
@@ -16,8 +17,9 @@ const SCALE: f32 = 0.5;
 // region: Resources
 struct Materials {
     player_materials: Handle<ColorMaterial>,
-    laser_materials: Handle<ColorMaterial>,
+    player_laser_materials: Handle<ColorMaterial>,
     enemy_materials: Handle<ColorMaterial>,
+    enemy_laser_materials: Handle<ColorMaterial>,
     explosion_atlas: Handle<TextureAtlas>,
 }
 
@@ -31,10 +33,12 @@ struct ActiveEnemies(u32);
 // endregiom: Resources
 
 // region: Components
+struct Laser;
 struct Player;
 struct PlayerReadyFire(bool);
-struct Laser;
+struct FromPlayer();
 struct Enemy;
+struct FromEnemy;
 struct Explosion;
 struct ExplosionToSpawn(Vec3);
 struct Speed(f32);
@@ -81,8 +85,9 @@ fn setup(
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(64.0, 64.0), 4, 4);
     commands.insert_resource(Materials {
         player_materials: materials.add(assert_server.load(PLAYER_SPRITE).into()),
-        laser_materials: materials.add(assert_server.load(LASER_SPRITE).into()),
+        player_laser_materials: materials.add(assert_server.load(PLAYER_LASER_SPRITE).into()),
         enemy_materials: materials.add(assert_server.load(ENEMY_SPRITE).into()),
+        enemy_laser_materials: materials.add(assert_server.load(ENEMY_LASER_SPRITE).into()),
         explosion_atlas: texture_atlases.add(texture_atlas),
     });
     commands.insert_resource(WinSize {
@@ -93,12 +98,12 @@ fn setup(
 
 fn laser_hit_enemy(
     mut commands: Commands,
-    mut laser_query: Query<(Entity, &Transform, &Sprite, With<Laser>)>,
-    mut enemy_query: Query<(Entity, &Transform, &Sprite, With<Enemy>)>,
+    mut laser_query: Query<(Entity, &Transform, &Sprite), (With<Laser>, With<FromPlayer>)>,
+    mut enemy_query: Query<(Entity, &Transform, &Sprite), With<Enemy>>,
     mut active_enemies: ResMut<ActiveEnemies>,
 ) {
-    for (laser_entity, laser_tf, laser_sprite, _) in laser_query.iter_mut() {
-        for (enemy_entity, enemy_tf, enemy_sprite, _) in enemy_query.iter_mut() {
+    for (laser_entity, laser_tf, laser_sprite) in laser_query.iter_mut() {
+        for (enemy_entity, enemy_tf, enemy_sprite) in enemy_query.iter_mut() {
             let laser_scale = Vec2::from(laser_tf.scale);
             let enemy_scale = Vec2::from(enemy_tf.scale);
             let collision = collide(
