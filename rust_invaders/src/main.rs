@@ -36,7 +36,7 @@ struct ActiveEnemies(u32);
 struct Laser;
 struct Player;
 struct PlayerReadyFire(bool);
-struct FromPlayer();
+struct FromPlayer;
 struct Enemy;
 struct FromEnemy;
 struct Explosion;

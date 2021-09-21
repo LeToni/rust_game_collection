@@ -34,7 +34,6 @@ fn player_spawn(mut commands: Commands, materials: Res<Materials>, window: Res<W
         })
         .insert(Player)
         .insert(PlayerReadyFire(true))
-        .insert(FromPlayer)
         .insert(Speed::default());
 }
 
@@ -78,6 +77,7 @@ fn player_shoots(
                         ..Default::default()
                     })
                     .insert(Laser)
+                    .insert(FromPlayer)
                     .insert(Speed::default());
             };
 
