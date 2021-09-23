@@ -1,22 +1,23 @@
 use bevy::{core::FixedTimestep, prelude::*};
 use rand::{thread_rng, Rng};
 
-use crate::{ActiveEnemies, Enemy, FromEnemy, Laser, Materials, Speed, WinSize, SCALE};
+use crate::{ActiveEnemies, Enemy, FromEnemy, Laser, Materials, Speed, WinSize, SCALE, TIME_STEPS};
 
 pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(1.0))
-                .with_system(enemy_spawn.system()),
-        )
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(0.9))
-                .with_system(enemy_fire.system()),
-        );
+        app.add_system(enemy_laser_movement.system())
+            .add_system_set(
+                SystemSet::new()
+                    .with_run_criteria(FixedTimestep::step(1.0))
+                    .with_system(enemy_spawn.system()),
+            )
+            .add_system_set(
+                SystemSet::new()
+                    .with_run_criteria(FixedTimestep::step(0.9))
+                    .with_system(enemy_fire.system()),
+            );
     }
 }
 
@@ -72,6 +73,21 @@ fn enemy_fire(
             })
             .insert(Laser)
             .insert(FromEnemy)
-            .insert(Speed::default);
+            .insert(Speed::default());
+    }
+}
+
+fn enemy_laser_movement(
+    window: Res<WinSize>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &Speed, &mut Transform), (With<Laser>, With<FromEnemy>)>,
+) {
+    for (enemy_laser_entity, speed, mut laser_tf) in query.iter_mut() {
+        let translation = &mut laser_tf.translation;
+        translation.y -= speed.0 * TIME_STEPS;
+
+        if translation.y < -window.height / 2.0 - 50.0 {
+            commands.entity(enemy_laser_entity).despawn();
+        }
     }
 }
