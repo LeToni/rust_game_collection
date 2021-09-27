@@ -1,5 +1,7 @@
 mod enemy;
 mod player;
+use std::collections::HashSet;
+
 use bevy::{prelude::*, sprite::collide_aabb::collide};
 use enemy::EnemyPlugin;
 use player::PlayerPlugin;
@@ -63,6 +65,7 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(EnemyPlugin)
         .add_system(laser_hit_enemy.system())
+        .add_system(laser_hit_player.system())
         .add_system(explosion_to_spawn.system())
         .add_system(animate_explosion.system())
         .run();
@@ -102,6 +105,8 @@ fn laser_hit_enemy(
     mut enemy_query: Query<(Entity, &Transform, &Sprite), With<Enemy>>,
     mut active_enemies: ResMut<ActiveEnemies>,
 ) {
+    let mut enemies_blasted: HashSet<Entity> = HashSet::new();
+
     for (laser_entity, laser_tf, laser_sprite) in laser_query.iter_mut() {
         for (enemy_entity, enemy_tf, enemy_sprite) in enemy_query.iter_mut() {
             let laser_scale = Vec2::from(laser_tf.scale);
@@ -115,16 +120,50 @@ fn laser_hit_enemy(
 
             if let Some(_) = collision {
                 // Remove enemy
-                commands.entity(enemy_entity).despawn();
-                active_enemies.0 -= 1;
+                if enemies_blasted.get(&enemy_entity).is_none() {
+                    commands.entity(enemy_entity).despawn();
+                    active_enemies.0 -= 1;
+
+                    //Explosion
+                    commands
+                        .spawn()
+                        .insert(ExplosionToSpawn(enemy_tf.translation.clone()));
+
+                    enemies_blasted.insert(enemy_entity);
+                }
 
                 // Remove laser
                 commands.entity(laser_entity).despawn();
+            }
+        }
+    }
+}
 
-                //Explosion
+fn laser_hit_player(
+    mut commands: Commands,
+    laser_query: Query<(Entity, &Transform, &Sprite), (With<Laser>, With<FromEnemy>)>,
+    player_query: Query<(Entity, &Transform, &Sprite), With<Player>>,
+) {
+    if let Ok((player_entity, player_tf, player_sprite)) = player_query.single() {
+        let player_size = player_sprite.size * Vec2::from(player_tf.scale.abs());
+
+        for (laser_entity, laser_tf, laser_sprite) in laser_query.iter() {
+            let laser_size = laser_sprite.size * Vec2::from(laser_tf.scale.abs());
+
+            let collision = collide(
+                laser_tf.translation,
+                laser_size,
+                player_tf.translation,
+                player_size,
+            );
+
+            if let Some(_) = collision {
+                commands.entity(player_entity).despawn();
+                commands.entity(laser_entity).despawn();
+
                 commands
                     .spawn()
-                    .insert(ExplosionToSpawn(enemy_tf.translation.clone()));
+                    .insert(ExplosionToSpawn(player_tf.translation.clone()));
             }
         }
     }
