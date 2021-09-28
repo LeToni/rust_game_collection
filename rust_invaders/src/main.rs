@@ -15,7 +15,7 @@ const TIME_STEPS: f32 = 1.0 / 60.0;
 const WINDOW_WIDTH: f32 = 600.0;
 const WINDOW_HEIGHT: f32 = 600.0;
 const SCALE: f32 = 0.5;
-
+const PLAYER_RESPAWN_DELAY: f64 = 2.0;
 // region: Resources
 struct Materials {
     player_materials: Handle<ColorMaterial>,
@@ -32,6 +32,28 @@ struct WinSize {
 }
 
 struct ActiveEnemies(u32);
+struct PlayerState {
+    on: bool,
+    last_shot: f64,
+}
+impl Default for PlayerState {
+    fn default() -> Self {
+        Self {
+            on: false,
+            last_shot: 0.0,
+        }
+    }
+}
+impl PlayerState {
+    fn shot(&mut self, time: f64) {
+        self.on = false;
+        self.last_shot = time
+    }
+    fn spawned(&mut self) {
+        self.on = true;
+        self.last_shot = 0.0
+    }
+}
 // endregiom: Resources
 
 // region: Components
@@ -141,6 +163,8 @@ fn laser_hit_enemy(
 
 fn laser_hit_player(
     mut commands: Commands,
+    mut player_state: ResMut<PlayerState>,
+    time: Res<Time>,
     laser_query: Query<(Entity, &Transform, &Sprite), (With<Laser>, With<FromEnemy>)>,
     player_query: Query<(Entity, &Transform, &Sprite), With<Player>>,
 ) {
@@ -159,6 +183,7 @@ fn laser_hit_player(
 
             if let Some(_) = collision {
                 commands.entity(player_entity).despawn();
+                player_state.shot(time.seconds_since_startup());
                 commands.entity(laser_entity).despawn();
 
                 commands
