@@ -15,6 +15,8 @@ const TIME_STEPS: f32 = 1.0 / 60.0;
 const WINDOW_WIDTH: f32 = 600.0;
 const WINDOW_HEIGHT: f32 = 600.0;
 const SCALE: f32 = 0.5;
+const MAX_ENEMIES: u32 = 2;
+const MAX_FORMATION_MEMBERS: u32 = 2;
 const PLAYER_RESPAWN_DELAY: f64 = 2.0;
 // region: Resources
 struct Materials {
