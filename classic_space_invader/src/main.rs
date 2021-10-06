@@ -7,12 +7,16 @@ const TIME_STEP: f32 = 1. / 60.;
 
 const PLAYER_SPRITE: &str = "player.png";
 const PLAYER_LASER_SPRITE: &str = "laser_player.png";
+const ENEMY_SPRITE: &str = "enemy.png";
+const ENEMY_LASER_SPRITE: &str = "laser_enemy.png";
 
 // region: Resources
 
 struct Materials {
     player: Handle<ColorMaterial>,
     player_laser: Handle<ColorMaterial>,
+    enemy: Handle<ColorMaterial>,
+    enemy_laser: Handle<ColorMaterial>,
 }
 
 // endregion: Resources
@@ -22,6 +26,8 @@ struct Materials {
 struct Player;
 struct PlayerLaser;
 struct PlayerReadyToFire(bool);
+struct Enemy;
+struct EnemyLaser;
 
 struct Laser;
 struct Speed(f32);
@@ -46,11 +52,13 @@ fn main() {
         .add_startup_system(setup.system())
         .add_startup_stage(
             "game_setup",
-            SystemStage::parallel().with_system(player_spawn.system()),
+            SystemStage::parallel()
+                .with_system(player_spawn.system())
+                .with_system(enemy_spawn.system()),
         )
         .add_system(player_movement.system())
         .add_system(player_shoots.system())
-        .add_system(laser_movement.system())
+        .add_system(player_laser_movement.system())
         .run();
 }
 
@@ -66,6 +74,8 @@ fn setup(
     commands.insert_resource(Materials {
         player: materials.add(asset_server.load(PLAYER_SPRITE).into()),
         player_laser: materials.add(asset_server.load(PLAYER_LASER_SPRITE).into()),
+        enemy: materials.add(asset_server.load(ENEMY_SPRITE).into()),
+        enemy_laser: materials.add(asset_server.load(ENEMY_LASER_SPRITE).into()),
     });
 }
 
@@ -138,7 +148,7 @@ fn player_shoots(
     }
 }
 
-fn laser_movement(
+fn player_laser_movement(
     mut commands: Commands,
     mut query: Query<(Entity, &Speed, &mut Transform), (With<Laser>, With<PlayerLaser>)>,
 ) {
@@ -150,4 +160,22 @@ fn laser_movement(
             commands.entity(laser_entity).despawn();
         }
     }
+}
+
+fn enemy_spawn(mut commands: Commands, materials: Res<Materials>) {
+    let pos_x = -WIN_W / 2.;
+    let pos_y = WIN_H / 2.;
+
+    commands
+        .spawn_bundle(SpriteBundle {
+            material: materials.enemy.clone(),
+            transform: Transform {
+                translation: Vec3::new(pos_x + 20. * 2., pos_y - 20. * 2., 10.),
+                scale: Vec3::new(SCALE, SCALE, 1.),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .insert(Enemy)
+        .insert(EnemyLaser);
 }
