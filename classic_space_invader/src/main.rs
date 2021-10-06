@@ -20,7 +20,10 @@ struct Materials {
 // region Components
 
 struct Player;
+struct PlayerLaser;
+struct PlayerReadyToFire(bool);
 
+struct Laser;
 struct Speed(f32);
 
 impl Default for Speed {
@@ -41,9 +44,13 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
-        .add_startup_stage("game_setup", SystemStage::single(player_spawn.system()))
+        .add_startup_stage(
+            "game_setup",
+            SystemStage::parallel().with_system(player_spawn.system()),
+        )
         .add_system(player_movement.system())
         .add_system(player_shoots.system())
+        .add_system(laser_movement.system())
         .run();
 }
 
@@ -76,6 +83,7 @@ fn player_spawn(mut commands: Commands, materials: Res<Materials>) {
             ..Default::default()
         })
         .insert(Player)
+        .insert(PlayerReadyToFire(true))
         .insert(Speed::default());
 }
 
@@ -100,22 +108,46 @@ fn player_shoots(
     mut commands: Commands,
     materials: Res<Materials>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&Transform, With<Player>)>,
+    mut query: Query<(&Transform, &mut PlayerReadyToFire, With<Player>)>,
 ) {
-    if let Ok((tf, _)) = query.single_mut() {
-        if keyboard_input.pressed(KeyCode::Space) {
+    if let Ok((tf, mut ready_to_fire, _)) = query.single_mut() {
+        if ready_to_fire.0 && keyboard_input.pressed(KeyCode::Space) {
             let pos_x = tf.translation.x;
             let pos_y = tf.translation.y;
 
-            commands.spawn_bundle(SpriteBundle {
-                material: materials.player_laser.clone(),
-                transform: Transform {
-                    translation: Vec3::new(pos_x, pos_y, 0.),
-                    scale: Vec3::new(SCALE, SCALE, 1.),
+            commands
+                .spawn_bundle(SpriteBundle {
+                    material: materials.player_laser.clone(),
+                    transform: Transform {
+                        translation: Vec3::new(pos_x, pos_y, 0.),
+                        scale: Vec3::new(SCALE, SCALE, 1.),
+                        ..Default::default()
+                    },
                     ..Default::default()
-                },
-                ..Default::default()
-            });
+                })
+                .insert(Laser)
+                .insert(PlayerLaser)
+                .insert(Speed::default());
+
+            ready_to_fire.0 = false;
+        }
+
+        if keyboard_input.just_released(KeyCode::Space) {
+            ready_to_fire.0 = true;
+        }
+    }
+}
+
+fn laser_movement(
+    mut commands: Commands,
+    mut query: Query<(Entity, &Speed, &mut Transform), (With<Laser>, With<PlayerLaser>)>,
+) {
+    for (laser_entity, speed, mut laser_tf) in query.iter_mut() {
+        let translation = &mut laser_tf.translation;
+        translation.y += speed.0 * TIME_STEP;
+
+        if translation.y > WIN_H {
+            commands.entity(laser_entity).despawn();
         }
     }
 }
