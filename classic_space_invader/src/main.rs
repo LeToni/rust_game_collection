@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{core::FixedTimestep, prelude::*};
 
 const WIN_H: f32 = 600.;
 const WIN_W: f32 = 600.;
@@ -10,6 +10,11 @@ const PLAYER_LASER_SPRITE: &str = "laser_player.png";
 const ENEMY_SPRITE: &str = "enemy.png";
 const ENEMY_LASER_SPRITE: &str = "laser_enemy.png";
 
+#[repr(i8)]
+enum Direction {
+    Right = 1,
+    Left = -1,
+}
 // region: Resources
 
 struct Materials {
@@ -37,6 +42,19 @@ impl Default for Speed {
         Self(500.)
     }
 }
+
+struct EnemyDirection {
+    direction: Direction,
+}
+
+impl Default for EnemyDirection {
+    fn default() -> Self {
+        EnemyDirection {
+            direction: Direction::Right,
+        }
+    }
+}
+
 // endregion Components
 
 fn main() {
@@ -48,6 +66,7 @@ fn main() {
             height: WIN_H,
             ..Default::default()
         })
+        .insert_resource(EnemyDirection::default())
         .add_plugins(DefaultPlugins)
         .add_startup_system(setup.system())
         .add_startup_stage(
@@ -59,6 +78,11 @@ fn main() {
         .add_system(player_movement.system())
         .add_system(player_shoots.system())
         .add_system(player_laser_movement.system())
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(0.9))
+                .with_system(enemy_movement.system()),
+        )
         .run();
 }
 
@@ -187,6 +211,30 @@ fn enemy_spawn(mut commands: Commands, materials: Res<Materials>) {
                 })
                 .insert(Enemy)
                 .insert(EnemyLaser);
+        }
+    }
+}
+
+fn enemy_movement(
+    enemy_dir: Res<EnemyDirection>,
+    mut query: Query<(&Speed, &mut Transform, &Sprite), With<Enemy>>,
+) {
+    let mut change_dir = false;
+
+    for (speed, mut tf, sprite) in query.iter_mut() {
+        let size = sprite.size * Vec2::from(tf.scale);
+
+        match enemy_dir.direction {
+            Direction::Right => {
+                if size.x + tf.translation.x > WIN_W / 2. {
+                    change_dir = true;
+                }
+            }
+            Direction::Left => {
+                if tf.translation.x - size.x < WIN_W / 2. {
+                    change_dir = true;
+                }
+            }
         }
     }
 }
