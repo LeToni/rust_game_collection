@@ -166,16 +166,27 @@ fn enemy_spawn(mut commands: Commands, materials: Res<Materials>) {
     let pos_x = -WIN_W / 2.;
     let pos_y = WIN_H / 2.;
 
-    commands
-        .spawn_bundle(SpriteBundle {
-            material: materials.enemy.clone(),
-            transform: Transform {
-                translation: Vec3::new(pos_x + 20. * 2., pos_y - 20. * 2., 10.),
-                scale: Vec3::new(SCALE, SCALE, 1.),
-                ..Default::default()
-            },
-            ..Default::default()
-        })
-        .insert(Enemy)
-        .insert(EnemyLaser);
+    let x_offset = 60.;
+    let y_offset = 50.;
+
+    for enemy_col in 0..2 {
+        for enemy_row in 0..5 {
+            commands
+                .spawn_bundle(SpriteBundle {
+                    material: materials.enemy.clone(),
+                    transform: Transform {
+                        translation: Vec3::new(
+                            pos_x + 20. * 2. + x_offset * enemy_row as f32,
+                            pos_y - 20. * 2. - y_offset * enemy_col as f32,
+                            10.,
+                        ),
+                        scale: Vec3::new(SCALE, SCALE, 1.),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(Enemy)
+                .insert(EnemyLaser);
+        }
+    }
 }
